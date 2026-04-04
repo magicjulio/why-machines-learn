@@ -2,6 +2,8 @@
 
 This is a desktop-first educational site scaffold built with Flask.
 
+## Now Online at https://104.248.41.195.nip.io/
+
 ## Setup
 
 ```bash
