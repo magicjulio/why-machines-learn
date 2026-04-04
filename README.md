@@ -9,6 +9,9 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+## my ai process
+i code the basic shape of what i want in jupyter notebooks. i give that to codex and let it implement routing and the web stuff.
+
 ## Run
 
 ```bash
@@ -30,6 +33,6 @@ Open `http://127.0.0.1:5000` in your browser.
 - `experiments/catalog.py`: chapter and experiment metadata
 - `experiments/perceptron.py`: perceptron backend logic
 
-## Add New Experiment
+## Add New Experiment with Agent
 
 See `ADD_EXPERIMENT.md`.
