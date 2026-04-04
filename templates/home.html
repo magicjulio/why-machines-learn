@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>The Math Behind AI | Chapters</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="container">
+        <header class="hero">
+            <p class="eyebrow">Interactive AI Math Textbook</p>
+            <h1>Why Machines Learn</h1>
+            <p class="hero-subtitle">
+                The Elegant Math Behind Modern AI Visualized. Based on the Book by Anil Ananthaswamy.
+            </p>
+        </header>
+
+        <section class="chapter-grid" aria-label="Textbook chapters">
+            {% for chapter in chapters %}
+            <article class="chapter-card" style="--index: {{ loop.index0 }}">
+                <h2>{{ chapter.title }}</h2>
+                <p>{{ chapter.summary }}</p>
+                <div class="experiment-list">
+                    {% for experiment in chapter.experiments %}
+                    <a
+                        class="experiment-link"
+                        href="{{ url_for('experiments.experiment_page', slug=experiment.slug) }}"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                    >
+                        <span>{{ experiment.title }}</span>
+                        <small>{{ experiment.status }}</small>
+                    </a>
+                    {% endfor %}
+                </div>
+            </article>
+            {% endfor %}
+        </section>
+    </main>
+</body>
+</html>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ experiment.title }} | The Math Behind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="experiment-shell" style="--accent-tilt: 8deg;">
+        <a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+        <section class="experiment-card">
+            <p class="eyebrow">{{ experiment.chapter_title }}</p>
+            <h1>{{ experiment.title }}</h1>
+            <p class="hero-subtitle">{{ experiment.description }}</p>
+
+            <div class="placeholder-box">
+                <p>
+                    Placeholder layout for a future interactive experiment.
+                    You can later embed controls, plots, and notebook-powered logic here.
+                </p>
+            </div>
+        </section>
+    </main>
+</body>
+</html>

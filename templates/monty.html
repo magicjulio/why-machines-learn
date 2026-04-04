@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ experiment.title }} | The Math Behind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="experiment-shell" style="--accent-tilt: 8deg;">
+        <a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+        <section class="experiment-card">
+            <p class="eyebrow">{{ experiment.chapter_title }}</p>
+            <h1>{{ experiment.title }}</h1>
+            <p class="hero-subtitle">{{ experiment.description }}</p>
+
+            <div class="lab-grid">
+                <aside class="controls-panel">
+                    <h2>Controls</h2>
+
+                    <label for="n-runs">Number of runs: <span id="n-value">1000</span></label>
+                    <input id="n-runs" type="range" min="10" max="50000" step="10" value="1000" />
+
+                    <label for="strategy">Strategy</label>
+                    <select id="strategy">
+                        <option value="switch" selected>Switch doors</option>
+                        <option value="stay">Stay with first choice</option>
+                    </select>
+
+                    <button id="run-btn" class="run-btn">Run Simulation</button>
+
+                    <div id="summary" class="summary-box">
+                        Press <strong>Run Simulation</strong> to compare win/loss outcomes.
+                    </div>
+                </aside>
+
+                <div class="plots-panel">
+                    <div id="monty-plot" class="plot"></div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        const controls = {
+            nRuns: document.getElementById("n-runs"),
+            strategy: document.getElementById("strategy"),
+            runBtn: document.getElementById("run-btn"),
+            summary: document.getElementById("summary"),
+            nValue: document.getElementById("n-value"),
+        };
+
+        function syncLabels() {
+            controls.nValue.textContent = controls.nRuns.value;
+        }
+
+        function renderPlot(wins, losses, strategyLabel) {
+            Plotly.react("monty-plot", [
+                {
+                    type: "bar",
+                    x: ["Wins", "Losses"],
+                    y: [wins, losses],
+                    marker: {
+                        color: ["#2e7d32", "#d84315"],
+                        line: { color: "#2f2a1d", width: 1.2 },
+                    },
+                    text: [wins.toString(), losses.toString()],
+                    textposition: "outside",
+                }
+            ], {
+                title: `Monty Hall Outcomes (${strategyLabel})`,
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 55, r: 20, t: 48, b: 45 },
+                yaxis: { title: "Count", rangemode: "tozero" },
+            }, { responsive: true });
+        }
+
+        async function runSimulation() {
+            controls.runBtn.disabled = true;
+            controls.runBtn.textContent = "Running...";
+
+            try {
+                const switchStrategy = controls.strategy.value === "switch";
+                const payload = {
+                    n: Number(controls.nRuns.value),
+                    switch: switchStrategy,
+                };
+
+                const response = await fetch("/api/monty-hall/simulate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to run Monty Hall simulation.");
+                }
+
+                const wins = data.result.wins;
+                const losses = data.result.losses;
+                const winRate = data.result.win_rate;
+                const strategyLabel = switchStrategy ? "Switch" : "Stay";
+
+                renderPlot(wins, losses, strategyLabel);
+                controls.summary.innerHTML = `
+                    <strong>Strategy:</strong> ${strategyLabel}<br>
+                    <strong>Runs:</strong> ${data.params.n}<br>
+                    <strong>Wins:</strong> ${wins}<br>
+                    <strong>Losses:</strong> ${losses}<br>
+                    <strong>Win rate:</strong> ${(winRate * 100).toFixed(2)}%
+                `;
+            } catch (error) {
+                controls.summary.textContent = `Error: ${error.message}`;
+            } finally {
+                controls.runBtn.disabled = false;
+                controls.runBtn.textContent = "Run Simulation";
+            }
+        }
+
+        controls.nRuns.addEventListener("input", syncLabels);
+        controls.runBtn.addEventListener("click", runSimulation);
+
+        syncLabels();
+        runSimulation();
+    </script>
+</body>
+</html>

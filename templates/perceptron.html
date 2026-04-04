@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ experiment.title }} | The Math Behind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="experiment-shell">
+        <a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+        <section class="experiment-card">
+            <p class="eyebrow">{{ experiment.chapter_title }}</p>
+            <h1>{{ experiment.title }}</h1>
+            <p class="hero-subtitle">
+                This lab mirrors your notebook logic: generate separable 2D data, run perceptron updates, and inspect how the decision boundary evolves.
+            </p>
+
+            <div class="lab-grid">
+                <aside class="controls-panel">
+                    <h2>Controls</h2>
+
+                    <label for="samples">Samples: <span id="samples-value">140</span></label>
+                    <input id="samples" type="range" min="40" max="360" step="10" value="140" />
+
+                    <label for="margin">Margin Push: <span id="margin-value">0.20</span></label>
+                    <input id="margin" type="range" min="0.05" max="0.60" step="0.01" value="0.20" />
+
+                    <label for="lr">Learning Rate: <span id="lr-value">1.00</span></label>
+                    <input id="lr" type="range" min="0.10" max="1.50" step="0.05" value="1.00" />
+
+                    <label for="epochs">Max Epochs: <span id="epochs-value">40</span></label>
+                    <input id="epochs" type="range" min="5" max="120" step="1" value="40" />
+
+                    <label for="seed">Random Seed</label>
+                    <input id="seed" type="number" value="0" />
+
+                    <button id="run-btn" class="run-btn">Run Perceptron</button>
+
+                    <hr />
+
+                    <label for="epoch-slider">View Epoch: <span id="epoch-value">1</span></label>
+                    <input id="epoch-slider" type="range" min="1" max="1" step="1" value="1" disabled />
+
+                    <div id="summary" class="summary-box">Press <strong>Run Perceptron</strong> to generate data and train.</div>
+                </aside>
+
+                <div class="plots-panel">
+                    <div id="scatter-plot" class="plot"></div>
+                    <div id="mistake-plot" class="plot"></div>
+                </div>
+            </div>
+
+            <section class="concept-strip">
+                <div>
+                    <h3>Update Rule</h3>
+                    <p><code>w <- w + eta * y_i * x_i</code>, <code>b <- b + eta * y_i</code> when <code>y_i (w.x_i + b) <= 0</code>.</p>
+                </div>
+                <div>
+                    <h3>What To Observe</h3>
+                    <p>Track how mistakes drop over epochs and how the boundary rotates/shifts until data becomes separable.</p>
+                </div>
+                <div>
+                    <h3>Notebook Link</h3>
+                    <p>This page is designed to align with <code>perceptron.ipynb</code> so you can expand both in parallel.</p>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const controls = {
+            samples: document.getElementById("samples"),
+            margin: document.getElementById("margin"),
+            lr: document.getElementById("lr"),
+            epochs: document.getElementById("epochs"),
+            seed: document.getElementById("seed"),
+            runBtn: document.getElementById("run-btn"),
+            epochSlider: document.getElementById("epoch-slider"),
+            summary: document.getElementById("summary"),
+            samplesValue: document.getElementById("samples-value"),
+            marginValue: document.getElementById("margin-value"),
+            lrValue: document.getElementById("lr-value"),
+            epochsValue: document.getElementById("epochs-value"),
+            epochValue: document.getElementById("epoch-value"),
+        };
+
+        let latestPayload = null;
+
+        function syncLabels() {
+            controls.samplesValue.textContent = controls.samples.value;
+            controls.marginValue.textContent = Number(controls.margin.value).toFixed(2);
+            controls.lrValue.textContent = Number(controls.lr.value).toFixed(2);
+            controls.epochsValue.textContent = controls.epochs.value;
+        }
+
+        function boundaryLine(historyItem, points) {
+            const w = historyItem.w;
+            const b = historyItem.b;
+            const xMin = Math.min(...points.x) - 1;
+            const xMax = Math.max(...points.x) + 1;
+            const xs = [xMin, xMax];
+
+            if (Math.abs(w[1]) < 1e-9) {
+                if (Math.abs(w[0]) < 1e-9) {
+                    return null;
+                }
+                const xLine = -b / w[0];
+                return {
+                    x: [xLine, xLine],
+                    y: [Math.min(...points.y) - 1, Math.max(...points.y) + 1],
+                };
+            }
+
+            const ys = xs.map((x) => (-(w[0] * x + b)) / w[1]);
+            return { x: xs, y: ys };
+        }
+
+        function renderScatter(epochIndex) {
+            const points = latestPayload.points;
+            const history = latestPayload.history;
+            const step = history[epochIndex];
+            const line = boundaryLine(step, points);
+
+            const positive = { x: [], y: [] };
+            const negative = { x: [], y: [] };
+
+            points.labels.forEach((label, i) => {
+                if (label === 1) {
+                    positive.x.push(points.x[i]);
+                    positive.y.push(points.y[i]);
+                } else {
+                    negative.x.push(points.x[i]);
+                    negative.y.push(points.y[i]);
+                }
+            });
+
+            const traces = [
+                {
+                    type: "scatter",
+                    mode: "markers",
+                    name: "Class +1",
+                    x: positive.x,
+                    y: positive.y,
+                    marker: { color: "#1e88e5", size: 8, line: { color: "#1f1f1f", width: 0.7 } },
+                },
+                {
+                    type: "scatter",
+                    mode: "markers",
+                    name: "Class -1",
+                    x: negative.x,
+                    y: negative.y,
+                    marker: { color: "#e53935", size: 8, line: { color: "#1f1f1f", width: 0.7 } },
+                },
+            ];
+
+            if (line) {
+                traces.push({
+                    type: "scatter",
+                    mode: "lines",
+                    name: "Boundary",
+                    x: line.x,
+                    y: line.y,
+                    line: { color: "#2f2a1d", width: 3 },
+                });
+            }
+
+            Plotly.react("scatter-plot", traces, {
+                title: `Decision Boundary at Epoch ${epochIndex + 1}`,
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 40, r: 20, t: 45, b: 40 },
+                xaxis: { title: "Feature 1", zeroline: false },
+                yaxis: { title: "Feature 2", zeroline: false },
+                legend: { orientation: "h" },
+            }, { responsive: true });
+        }
+
+        function renderMistakePlot(epochIndex) {
+            const mistakes = latestPayload.history.map((h) => h.mistakes);
+            const epochs = mistakes.map((_, i) => i + 1);
+
+            Plotly.react("mistake-plot", [
+                {
+                    type: "scatter",
+                    mode: "lines+markers",
+                    x: epochs,
+                    y: mistakes,
+                    marker: { color: "#ff9800", size: 8 },
+                    line: { color: "#ff9800", width: 3 },
+                    name: "Mistakes",
+                },
+                {
+                    type: "scatter",
+                    mode: "markers",
+                    x: [epochIndex + 1],
+                    y: [mistakes[epochIndex]],
+                    marker: { color: "#2f2a1d", size: 12, symbol: "diamond" },
+                    name: "Current epoch",
+                }
+            ], {
+                title: "Misclassifications per Epoch",
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 45, r: 20, t: 45, b: 40 },
+                xaxis: { title: "Epoch", dtick: 1 },
+                yaxis: { title: "Mistakes", rangemode: "tozero" },
+                showlegend: false,
+            }, { responsive: true });
+        }
+
+        function updateEpochView() {
+            if (!latestPayload) {
+                return;
+            }
+
+            const idx = Number(controls.epochSlider.value) - 1;
+            controls.epochValue.textContent = String(idx + 1);
+
+            const h = latestPayload.history[idx];
+            const wText = `[${h.w.map((v) => v.toFixed(3)).join(", ")}]`;
+            controls.summary.innerHTML = `
+                <strong>Epoch ${idx + 1}</strong><br>
+                Mistakes: ${h.mistakes}<br>
+                w = ${wText}<br>
+                b = ${h.b.toFixed(3)}<br>
+                Final accuracy: ${(latestPayload.summary.accuracy * 100).toFixed(2)}%
+            `;
+
+            renderScatter(idx);
+            renderMistakePlot(idx);
+        }
+
+        async function runSimulation() {
+            controls.runBtn.disabled = true;
+            controls.runBtn.textContent = "Training...";
+
+            try {
+                const payload = {
+                    n_samples: Number(controls.samples.value),
+                    margin_eps: Number(controls.margin.value),
+                    learning_rate: Number(controls.lr.value),
+                    max_epochs: Number(controls.epochs.value),
+                    seed: Number(controls.seed.value || 0),
+                };
+
+                const response = await fetch("/api/perceptron/simulate", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!response.ok) {
+                    const message = await response.json();
+                    throw new Error(message.error || "Failed to run perceptron simulation.");
+                }
+
+                latestPayload = await response.json();
+                const nEpochs = latestPayload.history.length;
+
+                controls.epochSlider.disabled = false;
+                controls.epochSlider.min = "1";
+                controls.epochSlider.max = String(nEpochs);
+                controls.epochSlider.value = String(nEpochs);
+                updateEpochView();
+            } catch (err) {
+                controls.summary.textContent = `Error: ${err.message}`;
+            } finally {
+                controls.runBtn.disabled = false;
+                controls.runBtn.textContent = "Run Perceptron";
+            }
+        }
+
+        [controls.samples, controls.margin, controls.lr, controls.epochs].forEach((el) => {
+            el.addEventListener("input", syncLabels);
+        });
+
+        controls.runBtn.addEventListener("click", runSimulation);
+        controls.epochSlider.addEventListener("input", updateEpochView);
+
+        syncLabels();
+    </script>
+</body>
+</html>

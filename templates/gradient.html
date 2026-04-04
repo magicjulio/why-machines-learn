@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<title>{{ experiment.title }} | The Math Behind AI</title>
+	<link rel="preconnect" href="https://fonts.googleapis.com" />
+	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+	<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+	<link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+	<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+	<div class="bg-shape bg-shape-a"></div>
+	<div class="bg-shape bg-shape-b"></div>
+
+	<main class="experiment-shell">
+		<a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+		<section class="experiment-card">
+			<p class="eyebrow">{{ experiment.chapter_title }}</p>
+			<h1>{{ experiment.title }}</h1>
+			<p class="hero-subtitle">
+				Minimize <code>z = x^2 + y^2</code> using classic gradient descent. The global minimum is at <code>(0, 0)</code>.
+			</p>
+
+			<div class="lab-grid">
+				<aside class="controls-panel">
+					<h2>Controls</h2>
+
+					<label for="x0">Start x0: <span id="x0-value">4.0</span></label>
+					<input id="x0" type="range" min="-8" max="8" step="0.1" value="4" />
+
+					<label for="y0">Start y0: <span id="y0-value">-3.0</span></label>
+					<input id="y0" type="range" min="-8" max="8" step="0.1" value="-3" />
+
+					<label for="lr">Learning rate: <span id="lr-value">0.15</span></label>
+					<input id="lr" type="range" min="0.01" max="0.90" step="0.01" value="0.15" />
+
+					<label for="steps">Steps: <span id="steps-value">25</span></label>
+					<input id="steps" type="range" min="5" max="100" step="1" value="25" />
+
+					<button id="run-btn" class="run-btn">Run Gradient Descent</button>
+
+					<div id="summary" class="summary-box">
+						Click <strong>Run Gradient Descent</strong> to generate the path.
+					</div>
+				</aside>
+
+				<div class="plots-panel">
+					<div id="surface-plot" class="plot"></div>
+					<div id="loss-plot" class="plot"></div>
+				</div>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		const controls = {
+			x0: document.getElementById("x0"),
+			y0: document.getElementById("y0"),
+			lr: document.getElementById("lr"),
+			steps: document.getElementById("steps"),
+			runBtn: document.getElementById("run-btn"),
+			summary: document.getElementById("summary"),
+			x0Value: document.getElementById("x0-value"),
+			y0Value: document.getElementById("y0-value"),
+			lrValue: document.getElementById("lr-value"),
+			stepsValue: document.getElementById("steps-value"),
+		};
+
+		function syncLabels() {
+			controls.x0Value.textContent = Number(controls.x0.value).toFixed(1);
+			controls.y0Value.textContent = Number(controls.y0.value).toFixed(1);
+			controls.lrValue.textContent = Number(controls.lr.value).toFixed(2);
+			controls.stepsValue.textContent = controls.steps.value;
+		}
+
+		function renderPlots(data) {
+			const surface = data.surface;
+			const path = data.path;
+			const steps = path.z.map((_, i) => i);
+
+			Plotly.react("surface-plot", [
+				{
+					type: "surface",
+					x: surface.x,
+					y: surface.y,
+					z: surface.z,
+					opacity: 0.84,
+					colorscale: "YlOrBr",
+					showscale: false,
+				},
+				{
+					type: "scatter3d",
+					mode: "lines+markers",
+					x: path.x,
+					y: path.y,
+					z: path.z,
+					line: { color: "#1f2937", width: 7 },
+					marker: { color: "#ef4444", size: 4 },
+					name: "GD path",
+				}
+			], {
+				title: "Bowl Surface and Optimization Path",
+				paper_bgcolor: "rgba(255,255,255,0.72)",
+				margin: { l: 0, r: 0, t: 45, b: 0 },
+				scene: {
+					xaxis: { title: "x" },
+					yaxis: { title: "y" },
+					zaxis: { title: "z" },
+					camera: { eye: { x: 1.5, y: 1.3, z: 0.9 } },
+				},
+			}, { responsive: true });
+
+			Plotly.react("loss-plot", [
+				{
+					type: "scatter",
+					mode: "lines+markers",
+					x: steps,
+					y: path.z,
+					line: { color: "#f59e0b", width: 3 },
+					marker: { size: 7, color: "#f59e0b" },
+				}
+			], {
+				title: "z Value per Step",
+				paper_bgcolor: "rgba(255,255,255,0.72)",
+				plot_bgcolor: "rgba(255,255,255,0.88)",
+				margin: { l: 50, r: 20, t: 45, b: 45 },
+				xaxis: { title: "Step" },
+				yaxis: { title: "z = x^2 + y^2", rangemode: "tozero" },
+			}, { responsive: true });
+		}
+
+		async function runExperiment() {
+			controls.runBtn.disabled = true;
+			controls.runBtn.textContent = "Running...";
+
+			try {
+				const payload = {
+					x0: Number(controls.x0.value),
+					y0: Number(controls.y0.value),
+					learning_rate: Number(controls.lr.value),
+					steps: Number(controls.steps.value),
+				};
+
+				const response = await fetch("/api/gradient-descent/run", {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(payload),
+				});
+
+				const data = await response.json();
+				if (!response.ok) {
+					throw new Error(data.error || "Request failed.");
+				}
+
+				renderPlots(data);
+				controls.summary.innerHTML = `
+					<strong>Start z:</strong> ${data.summary.start_z.toFixed(4)}<br>
+					<strong>Final z:</strong> ${data.summary.final_z.toFixed(6)}<br>
+					<strong>Improvement:</strong> ${data.summary.improvement.toFixed(4)}<br>
+					<strong>Final point:</strong> (${data.summary.final_point[0].toFixed(4)}, ${data.summary.final_point[1].toFixed(4)})
+				`;
+			} catch (error) {
+				controls.summary.textContent = `Error: ${error.message}`;
+			} finally {
+				controls.runBtn.disabled = false;
+				controls.runBtn.textContent = "Run Gradient Descent";
+			}
+		}
+
+		[controls.x0, controls.y0, controls.lr, controls.steps].forEach((element) => {
+			element.addEventListener("input", syncLabels);
+		});
+
+		controls.runBtn.addEventListener("click", runExperiment);
+
+		syncLabels();
+		runExperiment();
+	</script>
+</body>
+</html>

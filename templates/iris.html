@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ experiment.title }} | The Math Behind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="experiment-shell">
+        <a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+        <section class="experiment-card">
+            <p class="eyebrow">{{ experiment.chapter_title }}</p>
+            <h1>{{ experiment.title }}</h1>
+            <p class="hero-subtitle">
+                Recreate the notebook’s PCA pipeline: compute the covariance matrix, extract eigenvectors, and project the four-dimensional Iris measurements into a lower-dimensional space.
+            </p>
+
+            <div class="lab-grid">
+                <aside class="controls-panel">
+                    <h2>Controls</h2>
+
+                    <label for="dimensions">Projection view</label>
+                    <select id="dimensions">
+                        <option value="2">2 principal components</option>
+                        <option value="3">3 principal components</option>
+                    </select>
+
+                    <label for="center-data">Preprocess data</label>
+                    <select id="center-data">
+                        <option value="true">Center features before PCA</option>
+                        <option value="false">Use raw features directly</option>
+                    </select>
+
+                    <button id="run-btn" class="run-btn">Run PCA</button>
+
+                    <div id="summary" class="summary-box">
+                        Press <strong>Run PCA</strong> to project the Iris data and inspect how much variance the leading components explain.
+                    </div>
+                </aside>
+
+                <div class="plots-panel">
+                    <div id="projection-plot" class="plot"></div>
+                    <div id="variance-plot" class="plot"></div>
+                    <div id="loading-plot" class="plot"></div>
+                </div>
+            </div>
+
+            <section class="concept-strip">
+                <div>
+                    <h3>Covariance Matrix</h3>
+                    <p>PCA starts from <code>X^T X / (n - 1)</code>, which captures how the flower measurements vary together across the dataset.</p>
+                </div>
+                <div>
+                    <h3>Eigenvectors</h3>
+                    <p>The top eigenvectors define the new axes. Their entries, called loadings, show which original features push each principal component the most.</p>
+                </div>
+                <div>
+                    <h3>Projection</h3>
+                    <p>Projecting onto the first two or three principal components preserves as much variance as possible in a smaller space you can actually see.</p>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const controls = {
+            dimensions: document.getElementById("dimensions"),
+            centerData: document.getElementById("center-data"),
+            runBtn: document.getElementById("run-btn"),
+            summary: document.getElementById("summary"),
+        };
+
+        const SPECIES_STYLE = {
+            "Iris-setosa": { color: "#1d4ed8", symbol: "circle" },
+            "Iris-versicolor": { color: "#f59e0b", symbol: "square" },
+            "Iris-virginica": { color: "#dc2626", symbol: "diamond" },
+        };
+
+        function speciesTraces(data) {
+            const traces = [];
+            const dimensions = Number(data.params.dimensions);
+
+            Object.keys(SPECIES_STYLE).forEach((name) => {
+                const xs = [];
+                const ys = [];
+                const zs = [];
+
+                data.projection.species.forEach((species, index) => {
+                    if (species === name) {
+                        xs.push(data.projection.x[index]);
+                        ys.push(data.projection.y[index]);
+                        if (dimensions === 3) {
+                            zs.push(data.projection.z[index]);
+                        }
+                    }
+                });
+
+                const style = SPECIES_STYLE[name];
+                if (dimensions === 3) {
+                    traces.push({
+                        type: "scatter3d",
+                        mode: "markers",
+                        name,
+                        x: xs,
+                        y: ys,
+                        z: zs,
+                        marker: { color: style.color, size: 5, symbol: style.symbol, opacity: 0.86 },
+                    });
+                } else {
+                    traces.push({
+                        type: "scatter",
+                        mode: "markers",
+                        name,
+                        x: xs,
+                        y: ys,
+                        marker: { color: style.color, size: 10, symbol: style.symbol, opacity: 0.86 },
+                    });
+                }
+            });
+
+            return traces;
+        }
+
+        function renderProjection(data) {
+            const dimensions = Number(data.params.dimensions);
+            const traces = speciesTraces(data);
+
+            if (dimensions === 3) {
+                Plotly.react("projection-plot", traces, {
+                    title: "Iris Projected onto the First Three Principal Components",
+                    paper_bgcolor: "rgba(255,255,255,0.72)",
+                    margin: { l: 0, r: 0, t: 45, b: 0 },
+                    scene: {
+                        xaxis: { title: "PC1" },
+                        yaxis: { title: "PC2" },
+                        zaxis: { title: "PC3" },
+                        camera: { eye: { x: 1.45, y: 1.25, z: 0.9 } },
+                    },
+                }, { responsive: true });
+            } else {
+                Plotly.react("projection-plot", traces, {
+                    title: "Iris Projected onto the First Two Principal Components",
+                    paper_bgcolor: "rgba(255,255,255,0.72)",
+                    plot_bgcolor: "rgba(255,255,255,0.88)",
+                    margin: { l: 45, r: 20, t: 45, b: 40 },
+                    xaxis: { title: "PC1" },
+                    yaxis: { title: "PC2" },
+                    legend: { orientation: "h" },
+                }, { responsive: true });
+            }
+        }
+
+        function renderVariance(data) {
+            Plotly.react("variance-plot", [
+                {
+                    type: "bar",
+                    x: data.variance.labels,
+                    y: data.variance.explained_ratio,
+                    name: "Explained variance",
+                    marker: { color: "#f59e0b" },
+                },
+                {
+                    type: "scatter",
+                    mode: "lines+markers",
+                    x: data.variance.labels,
+                    y: data.variance.cumulative_ratio,
+                    name: "Cumulative variance",
+                    line: { color: "#2f2a1d", width: 3 },
+                    marker: { size: 9, color: "#2f2a1d" },
+                    yaxis: "y2",
+                }
+            ], {
+                title: "How Much Variance Each Principal Component Captures",
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 45, r: 45, t: 45, b: 40 },
+                xaxis: { title: "Principal component" },
+                yaxis: { title: "Explained variance ratio", range: [0, 1] },
+                yaxis2: {
+                    title: "Cumulative ratio",
+                    overlaying: "y",
+                    side: "right",
+                    range: [0, 1],
+                },
+                legend: { orientation: "h" },
+            }, { responsive: true });
+        }
+
+        function renderLoadings(data) {
+            Plotly.react("loading-plot", [
+                {
+                    type: "bar",
+                    name: "PC1",
+                    x: data.loadings.features,
+                    y: data.loadings.pc1,
+                    marker: { color: "#1d4ed8" },
+                },
+                {
+                    type: "bar",
+                    name: "PC2",
+                    x: data.loadings.features,
+                    y: data.loadings.pc2,
+                    marker: { color: "#f59e0b" },
+                },
+                {
+                    type: "bar",
+                    name: "PC3",
+                    x: data.loadings.features,
+                    y: data.loadings.pc3,
+                    marker: { color: "#dc2626" },
+                }
+            ], {
+                title: "Feature Loadings on the First Three Principal Components",
+                barmode: "group",
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 45, r: 20, t: 45, b: 65 },
+                xaxis: { title: "Original feature" },
+                yaxis: { title: "Loading" },
+                legend: { orientation: "h" },
+            }, { responsive: true });
+        }
+
+        function renderSummary(data) {
+            const meanText = data.summary.mean_vector.map((value) => value.toFixed(2)).join(", ");
+            controls.summary.innerHTML = `
+                <strong>Samples:</strong> ${data.summary.samples}<br>
+                <strong>Features:</strong> ${data.summary.features}<br>
+                <strong>Center data:</strong> ${data.params.center_data ? "Yes" : "No"}<br>
+                <strong>Variance kept:</strong> ${(data.summary.top_ratio * 100).toFixed(2)}% with the top ${data.params.dimensions} PCs<br>
+                <strong>PC1 / PC2 / PC3:</strong> ${(data.summary.pc1_ratio * 100).toFixed(1)}%, ${(data.summary.pc2_ratio * 100).toFixed(1)}%, ${(data.summary.pc3_ratio * 100).toFixed(1)}%<br>
+                <strong>Feature means:</strong> [${meanText}]
+            `;
+        }
+
+        async function runExperiment() {
+            controls.runBtn.disabled = true;
+            controls.runBtn.textContent = "Running...";
+
+            try {
+                const payload = {
+                    dimensions: Number(controls.dimensions.value),
+                    center_data: controls.centerData.value === "true",
+                };
+
+                const response = await fetch("/api/iris-pca/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to run PCA.");
+                }
+
+                renderProjection(data);
+                renderVariance(data);
+                renderLoadings(data);
+                renderSummary(data);
+            } catch (error) {
+                controls.summary.textContent = `Error: ${error.message}`;
+            } finally {
+                controls.runBtn.disabled = false;
+                controls.runBtn.textContent = "Run PCA";
+            }
+        }
+
+        controls.runBtn.addEventListener("click", runExperiment);
+        runExperiment();
+    </script>
+</body>
+</html>

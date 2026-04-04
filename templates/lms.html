@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ experiment.title }} | The Math Behind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="experiment-shell">
+        <a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+        <section class="experiment-card">
+            <p class="eyebrow">{{ experiment.chapter_title }}</p>
+            <h1>{{ experiment.title }}</h1>
+            <p class="hero-subtitle">
+                Feed a noisy speech clip into an adaptive linear neuron, tune the number of taps and the learning rate, and compare the learned output against the clean target.
+            </p>
+
+            <div class="lab-grid">
+                <aside class="controls-panel">
+                    <h2>Controls</h2>
+
+                    <label for="sample-id">Speech clip</label>
+                    <select id="sample-id">
+                        {% for sample_id in range(1, 28) %}
+                        <option value="{{ sample_id }}">{{ "sp%02d" % sample_id }}</option>
+                        {% endfor %}
+                    </select>
+
+                    <label for="taps">Filter taps: <span id="taps-value">32</span></label>
+                    <input id="taps" type="range" min="4" max="128" step="4" value="32" />
+
+                    <label for="lr">Learning rate: <span id="lr-value">0.10</span></label>
+                    <input id="lr" type="range" min="0.02" max="1.20" step="0.02" value="0.10" />
+
+                    <button id="run-btn" class="run-btn">Run ADALINE</button>
+
+                    <div id="summary" class="summary-box">
+                        Press <strong>Run ADALINE</strong> to denoise a clip and compare the result.
+                    </div>
+                </aside>
+
+                <div class="plots-panel">
+                    <div class="audio-grid">
+                        <section class="audio-card">
+                            <h3>Noisy Input</h3>
+                            <audio id="noisy-audio" controls preload="none"></audio>
+                        </section>
+                        <section class="audio-card">
+                            <h3>Clean Target</h3>
+                            <audio id="clean-audio" controls preload="none"></audio>
+                        </section>
+                        <section class="audio-card">
+                            <h3>ADALINE Output</h3>
+                            <audio id="output-audio" controls preload="none"></audio>
+                        </section>
+                    </div>
+
+                    <div id="waveform-plot" class="plot"></div>
+                    <div id="learning-plot" class="plot"></div>
+                </div>
+            </div>
+
+            <section class="concept-strip">
+                <div>
+                    <h3>Update Rule</h3>
+                    <p><code>w <- w + (mu / (x.x + eps)) e x</code> with <code>e = d - y</code>. The filter nudges weights toward the clean target on every sample.</p>
+                </div>
+                <div>
+                    <h3>What To Listen For</h3>
+                    <p>Try the same clip with small and large step sizes. Stable settings usually clean up the signal more smoothly, while aggressive ones can sound brittle or unstable.</p>
+                </div>
+                <div>
+                    <h3>What To Watch</h3>
+                    <p>The noisy waveform stays jagged, the ADALINE output tries to follow the clean target, and the smoothed squared error should trend downward.</p>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const controls = {
+            sampleId: document.getElementById("sample-id"),
+            taps: document.getElementById("taps"),
+            lr: document.getElementById("lr"),
+            runBtn: document.getElementById("run-btn"),
+            summary: document.getElementById("summary"),
+            tapsValue: document.getElementById("taps-value"),
+            lrValue: document.getElementById("lr-value"),
+            noisyAudio: document.getElementById("noisy-audio"),
+            cleanAudio: document.getElementById("clean-audio"),
+            outputAudio: document.getElementById("output-audio"),
+        };
+
+        function syncLabels() {
+            controls.tapsValue.textContent = controls.taps.value;
+            controls.lrValue.textContent = Number(controls.lr.value).toFixed(2);
+        }
+
+        function renderWaveforms(data) {
+            const signals = data.signals;
+
+            Plotly.react("waveform-plot", [
+                {
+                    type: "scatter",
+                    mode: "lines",
+                    name: "Noisy",
+                    x: signals.noisy.t,
+                    y: signals.noisy.y,
+                    line: { color: "#ef4444", width: 2 },
+                },
+                {
+                    type: "scatter",
+                    mode: "lines",
+                    name: "Clean",
+                    x: signals.clean.t,
+                    y: signals.clean.y,
+                    line: { color: "#1d4ed8", width: 2 },
+                },
+                {
+                    type: "scatter",
+                    mode: "lines",
+                    name: "ADALINE Output",
+                    x: signals.output.t,
+                    y: signals.output.y,
+                    line: { color: "#f59e0b", width: 2.5 },
+                }
+            ], {
+                title: "Waveform Comparison",
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 48, r: 20, t: 45, b: 44 },
+                xaxis: { title: "Time (s)" },
+                yaxis: { title: "Amplitude" },
+                legend: { orientation: "h" },
+            }, { responsive: true });
+        }
+
+        function renderLearningCurve(data) {
+            Plotly.react("learning-plot", [
+                {
+                    type: "scatter",
+                    mode: "lines",
+                    x: data.learning_curve.step,
+                    y: data.learning_curve.mse,
+                    line: { color: "#2f2a1d", width: 3 },
+                    fill: "tozeroy",
+                    fillcolor: "rgba(245, 158, 11, 0.18)",
+                }
+            ], {
+                title: "Smoothed Squared Error During Learning",
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 55, r: 20, t: 45, b: 44 },
+                xaxis: { title: "Sample index" },
+                yaxis: { title: "Rolling MSE", rangemode: "tozero" },
+            }, { responsive: true });
+        }
+
+        function renderAudio(data) {
+            controls.noisyAudio.src = data.audio.noisy;
+            controls.cleanAudio.src = data.audio.clean;
+            controls.outputAudio.src = data.audio.output;
+        }
+
+        function renderSummary(data) {
+            const gain = data.summary.snr_output_db - data.summary.snr_noisy_db;
+            controls.summary.innerHTML = `
+                <strong>Clip length:</strong> ${data.summary.duration_seconds.toFixed(2)} s<br>
+                <strong>MSE vs clean (noisy):</strong> ${data.summary.mse_noisy.toFixed(6)}<br>
+                <strong>MSE vs clean (ADALINE):</strong> ${data.summary.mse_output.toFixed(6)}<br>
+                <strong>SNR:</strong> ${data.summary.snr_noisy_db.toFixed(2)} dB → ${data.summary.snr_output_db.toFixed(2)} dB<br>
+                <strong>SNR gain:</strong> ${gain.toFixed(2)} dB<br>
+                <strong>Mean |error|:</strong> ${data.summary.mean_absolute_error.toFixed(5)}
+            `;
+        }
+
+        async function runExperiment() {
+            controls.runBtn.disabled = true;
+            controls.runBtn.textContent = "Running...";
+
+            try {
+                const payload = {
+                    sample_id: Number(controls.sampleId.value),
+                    taps: Number(controls.taps.value),
+                    learning_rate: Number(controls.lr.value),
+                };
+
+                const response = await fetch("/api/adaline/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to run ADALINE.");
+                }
+
+                renderWaveforms(data);
+                renderLearningCurve(data);
+                renderAudio(data);
+                renderSummary(data);
+            } catch (error) {
+                controls.summary.textContent = `Error: ${error.message}`;
+            } finally {
+                controls.runBtn.disabled = false;
+                controls.runBtn.textContent = "Run ADALINE";
+            }
+        }
+
+        [controls.taps, controls.lr].forEach((element) => {
+            element.addEventListener("input", syncLabels);
+        });
+
+        controls.runBtn.addEventListener("click", runExperiment);
+
+        syncLabels();
+        runExperiment();
+    </script>
+</body>
+</html>
