@@ -72,7 +72,14 @@ CHAPTERS = [
                 "status": "Interactive",
                 "description": "Center the Iris dataset, project it onto principal components, and watch how species separate in 2D or 3D.",
                 "template": "iris.html",
-            }
+            },
+            {
+                "slug": "hopfield-5-vs-8",
+                "title": "Experiment 2: Hopfield Memory (5 vs 8)",
+                "status": "Interactive",
+                "description": "Store MNIST digits 5 and 8 with Hebbian learning, add noise, and watch asynchronous recall sweep states.",
+                "template": "hopfield.html",
+            },
         ],
     },
     

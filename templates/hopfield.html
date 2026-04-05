@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ experiment.title }} | The Math Behind AI</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=Fraunces:opsz,wght@9..144,400;9..144,700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+    <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+    <style>
+        .state-grid {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.8rem;
+        }
+
+        .state-card {
+            background: rgba(255, 255, 255, 0.78);
+            border: 1px solid rgba(255, 183, 2, 0.45);
+            border-radius: 12px;
+            padding: 0.45rem;
+        }
+
+        .state-plot {
+            height: 220px;
+        }
+
+        @media (max-width: 980px) {
+            .state-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-shape bg-shape-a"></div>
+    <div class="bg-shape bg-shape-b"></div>
+
+    <main class="experiment-shell">
+        <a class="back-link" href="{{ url_for('experiments.home') }}">← Back to chapter list</a>
+
+        <section class="experiment-card">
+            <p class="eyebrow">{{ experiment.chapter_title }}</p>
+            <h1>{{ experiment.title }}</h1>
+            <p class="hero-subtitle">
+                Classic Hebbian Hopfield setup with two stored memories (MNIST digits 5 and 8). Add noise to one memory and inspect asynchronous recall sweep by sweep.
+            </p>
+
+            <div class="lab-grid">
+                <aside class="controls-panel">
+                    <h2>Controls</h2>
+
+                    <label for="digit">Stored digit to corrupt</label>
+                    <select id="digit">
+                        <option value="5">5</option>
+                        <option value="8" selected>8</option>
+                    </select>
+
+                    <label for="noise">Noise ratio: <span id="noise-value">0.30</span></label>
+                    <input id="noise" type="range" min="0.00" max="0.55" step="0.01" value="0.30" />
+
+                    <label for="steps">Max sweeps: <span id="steps-value">25</span></label>
+                    <input id="steps" type="range" min="1" max="80" step="1" value="25" />
+
+                    <label for="seed">Noise seed</label>
+                    <input id="seed" type="number" value="42" />
+
+                    <button id="run-btn" class="run-btn">Run Hopfield Recall</button>
+
+                    <div id="summary" class="summary-box">
+                        Press <strong>Run Hopfield Recall</strong> to simulate noisy recall dynamics.
+                    </div>
+                </aside>
+
+                <div class="plots-panel">
+                    <div class="state-grid">
+                        <div class="state-card"><div id="stored-plot" class="state-plot"></div></div>
+                        <div class="state-card"><div id="noisy-plot" class="state-plot"></div></div>
+                        <div class="state-card"><div id="recalled-plot" class="state-plot"></div></div>
+                    </div>
+                </div>
+            </div>
+
+            <section class="concept-strip">
+                <div>
+                    <h3>Update Style</h3>
+                    <p>Each sweep updates neurons one-by-one in sequence. That is asynchronous update, not all pixels simultaneously.</p>
+                </div>
+                <div>
+                    <h3>Energy Function</h3>
+                    <p>Recall tends to reduce <code>E = -0.5 s^T W s</code>. Lower energy means a more stable state, but not always an exact stored memory.</p>
+                </div>
+                <div>
+                    <h3>Why Only 5 &amp; 8</h3>
+                    <p>Keeping memory load tiny makes attractor behavior easier to see and avoids capacity issues hiding the theory.</p>
+                </div>
+            </section>
+        </section>
+    </main>
+
+    <script>
+        const controls = {
+            digit: document.getElementById("digit"),
+            noise: document.getElementById("noise"),
+            steps: document.getElementById("steps"),
+            seed: document.getElementById("seed"),
+            runBtn: document.getElementById("run-btn"),
+            summary: document.getElementById("summary"),
+            noiseValue: document.getElementById("noise-value"),
+            stepsValue: document.getElementById("steps-value"),
+        };
+
+        function syncLabels() {
+            controls.noiseValue.textContent = Number(controls.noise.value).toFixed(2);
+            controls.stepsValue.textContent = controls.steps.value;
+        }
+
+        function imageLayout(title, height) {
+            return {
+                title,
+                paper_bgcolor: "rgba(255,255,255,0.72)",
+                plot_bgcolor: "rgba(255,255,255,0.88)",
+                margin: { l: 8, r: 8, t: 38, b: 8 },
+                xaxis: { visible: false },
+                yaxis: { visible: false, autorange: "reversed" },
+                height,
+            };
+        }
+
+        function renderBinaryImage(target, image, title, height = 220) {
+            Plotly.react(target, [
+                {
+                    type: "heatmap",
+                    z: image,
+                    zmin: 0,
+                    zmax: 1,
+                    colorscale: [
+                        [0, "#060606"],
+                        [1, "#f1f5f9"],
+                    ],
+                    showscale: false,
+                    hoverinfo: "skip",
+                }
+            ], imageLayout(title, height), { displayModeBar: false, responsive: true });
+        }
+
+        function renderStateTriplet(data) {
+            renderBinaryImage("stored-plot", data.state.clean, `stored (${data.params.digit})`);
+            renderBinaryImage("noisy-plot", data.state.noisy, "noisy");
+            renderBinaryImage("recalled-plot", data.state.recalled, `recalled -> ${data.summary.pred_label}`);
+        }
+
+        function renderSummary(data) {
+            const flips = data.history.flips_per_sweep.join(", ");
+            controls.summary.innerHTML = `
+                <strong>Stored labels:</strong> ${data.stored.labels.join(", ")}<br>
+                <strong>Dataset source:</strong> ${data.dataset.source}<br>
+                <strong>Digit tested:</strong> ${data.params.digit}<br>
+                <strong>Nearest stored label:</strong> ${data.summary.pred_label} (distance=${data.summary.pred_distance})<br>
+                <strong>Exact recovery:</strong> ${data.summary.exact_recovery}<br>
+                <strong>Exact stored state:</strong> ${data.summary.is_stored_state}<br>
+                <strong>Sweeps executed:</strong> ${data.summary.sweeps_executed}<br>
+                <strong>Energy:</strong> ${data.summary.energy_noisy.toFixed(1)} -> ${data.summary.energy_recalled.toFixed(1)}<br>
+                <strong>Flips per sweep:</strong> ${flips || "0"}
+            `;
+        }
+
+        function renderAll(data) {
+            renderStateTriplet(data);
+            renderSummary(data);
+        }
+
+        async function runExperiment() {
+            controls.runBtn.disabled = true;
+            controls.runBtn.textContent = "Running...";
+
+            try {
+                const payload = {
+                    digit: Number(controls.digit.value),
+                    noise_ratio: Number(controls.noise.value),
+                    steps: Number(controls.steps.value),
+                    seed: Number(controls.seed.value || 0),
+                };
+
+                const response = await fetch("/api/hopfield/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to run Hopfield simulation.");
+                }
+                renderAll(data);
+            } catch (error) {
+                controls.summary.textContent = `Error: ${error.message}`;
+            } finally {
+                controls.runBtn.disabled = false;
+                controls.runBtn.textContent = "Run Hopfield Recall";
+            }
+        }
+
+        controls.noise.addEventListener("input", syncLabels);
+        controls.steps.addEventListener("input", syncLabels);
+
+        controls.runBtn.addEventListener("click", runExperiment);
+
+        syncLabels();
+        runExperiment();
+    </script>
+</body>
+</html>

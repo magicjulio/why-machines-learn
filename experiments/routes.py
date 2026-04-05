@@ -3,6 +3,7 @@ from flask import Blueprint, abort, render_template
 from experiments.adaline import simulate_adaline
 from experiments.catalog import CHAPTERS, EXPERIMENT_INDEX
 from experiments.gradient_descent import simulate_gradient_descent
+from experiments.hopfield import run_hopfield
 from experiments.iris_pca import simulate_iris_pca
 from experiments.knearest import simulate_knearest
 from experiments.perceptron import simulate_perceptron
@@ -54,3 +55,8 @@ def knearest_run():
 @experiments_bp.post("/api/iris-pca/run")
 def iris_pca_run():
     return simulate_iris_pca()
+
+
+@experiments_bp.post("/api/hopfield/run")
+def hopfield_run():
+    return run_hopfield()
