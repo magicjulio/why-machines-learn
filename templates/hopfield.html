@@ -10,6 +10,188 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
     <script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
     <style>
+        .hidden {
+            display: none;
+        }
+
+        .step-line {
+            margin-top: 0.15rem;
+            margin-bottom: 0.6rem;
+            font-size: 0.82rem;
+            color: #544828;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .gallery-picker {
+            margin-bottom: 0.75rem;
+        }
+
+        .gallery-picker input[type="file"] {
+            margin-bottom: 0;
+        }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 0.55rem;
+            margin-bottom: 0.85rem;
+        }
+
+        .gallery-card {
+            position: relative;
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(255, 183, 2, 0.45);
+            border-radius: 12px;
+            padding: 0.45rem;
+            transition: box-shadow 140ms ease, transform 140ms ease, border-color 140ms ease;
+        }
+
+        .gallery-card.selected {
+            border-color: #ffbe19;
+            box-shadow: 0 0 0 2px rgba(255, 190, 25, 0.48), 0 8px 18px rgba(120, 85, 0, 0.17);
+            transform: translateY(-1px);
+        }
+
+        .slot-title {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.3rem;
+            font-size: 0.78rem;
+            color: #544828;
+            font-weight: 700;
+        }
+
+        .slot-label {
+            border: 1px solid rgba(255, 183, 2, 0.42);
+            border-radius: 999px;
+            padding: 0.08rem 0.4rem;
+            background: rgba(255, 242, 184, 0.52);
+        }
+
+        .slot-canvas {
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            border: 1px solid rgba(255, 183, 2, 0.35);
+            border-radius: 10px;
+            background: #050505;
+            image-rendering: pixelated;
+            display: block;
+            margin-bottom: 0.35rem;
+            cursor: pointer;
+        }
+
+        .slot-actions {
+            display: grid;
+            gap: 0.35rem;
+        }
+
+        .slot-actions input[type="file"] {
+            font-size: 0.76rem;
+            margin-bottom: 0;
+        }
+
+        .memory-toggle {
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+            margin: 0;
+            font-size: 0.76rem;
+            color: #2f2a1d;
+            font-weight: 500;
+        }
+
+        .memory-toggle input[type="checkbox"] {
+            margin: 0;
+        }
+
+        .tool-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.65rem;
+        }
+
+        .tool-btn {
+            border: 1px solid rgba(255, 183, 2, 0.45);
+            border-radius: 10px;
+            background: rgba(255, 246, 209, 0.8);
+            color: #2f2a1d;
+            font: inherit;
+            font-weight: 700;
+            padding: 0.45rem 0.55rem;
+            cursor: pointer;
+            transition: transform 140ms ease, box-shadow 140ms ease, background 140ms ease;
+        }
+
+        .tool-btn.active {
+            background: linear-gradient(95deg, #ffe179, #ffc92f);
+            box-shadow: 0 8px 14px rgba(120, 85, 0, 0.18);
+        }
+
+        .query-canvas-wrap {
+            background: rgba(255, 255, 255, 0.88);
+            border: 1px solid rgba(255, 183, 2, 0.45);
+            border-radius: 12px;
+            padding: 0.55rem;
+            margin-bottom: 0.6rem;
+        }
+
+        #query-canvas {
+            width: 100%;
+            max-width: 320px;
+            aspect-ratio: 1 / 1;
+            border: 1px solid rgba(255, 183, 2, 0.45);
+            border-radius: 10px;
+            background: #050505;
+            image-rendering: pixelated;
+            display: block;
+            cursor: crosshair;
+            margin: 0 auto;
+            touch-action: none;
+        }
+
+        .query-hint {
+            margin-top: 0.4rem;
+            margin-bottom: 0;
+            text-align: center;
+            font-size: 0.8rem;
+            color: #544828;
+        }
+
+        .inline-buttons {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.5rem;
+            margin-bottom: 0.8rem;
+        }
+
+        .sub-btn {
+            border: 1px solid rgba(255, 183, 2, 0.48);
+            border-radius: 10px;
+            background: rgba(255, 249, 228, 0.9);
+            color: #2f2a1d;
+            font: inherit;
+            font-weight: 700;
+            padding: 0.62rem;
+            cursor: pointer;
+            transition: transform 150ms ease, box-shadow 150ms ease;
+        }
+
+        .sub-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 14px rgba(120, 85, 0, 0.15);
+        }
+
+        .sub-btn:disabled {
+            cursor: not-allowed;
+            opacity: 0.65;
+            transform: none;
+            box-shadow: none;
+        }
+
         .state-grid {
             display: grid;
             grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -24,12 +206,41 @@
         }
 
         .state-plot {
-            height: 220px;
+            height: 240px;
+        }
+
+        .inline-error {
+            margin-top: 0.3rem;
+            margin-bottom: 0.7rem;
+            color: #8f2d16;
+            font-size: 0.84rem;
+            font-weight: 600;
+            min-height: 1.2em;
+        }
+
+        .meta-row {
+            font-size: 0.82rem;
+            color: #544828;
+            margin-bottom: 0.5rem;
+        }
+
+        .mode-row {
+            margin-bottom: 0.75rem;
         }
 
         @media (max-width: 980px) {
+            .gallery-grid,
             .state-grid {
                 grid-template-columns: 1fr;
+            }
+
+            .inline-buttons,
+            .tool-row {
+                grid-template-columns: 1fr;
+            }
+
+            #query-canvas {
+                max-width: 260px;
             }
         }
     </style>
@@ -45,32 +256,70 @@
             <p class="eyebrow">{{ experiment.chapter_title }}</p>
             <h1>{{ experiment.title }}</h1>
             <p class="hero-subtitle">
-                Classic Hebbian Hopfield setup with two stored memories (MNIST digits 5 and 8). Add noise to one memory and inspect asynchronous recall sweep by sweep.
+                Switch between the original 5-vs-8 setup and a custom gallery mode. In custom mode, upload up to 5 images, select one, add noise randomly or by painting, then submit for recall.
             </p>
 
             <div class="lab-grid">
                 <aside class="controls-panel">
-                    <h2>Controls</h2>
+                    <h2>Interactive Workflow</h2>
 
-                    <label for="digit">Stored digit to corrupt</label>
-                    <select id="digit">
-                        <option value="5">5</option>
-                        <option value="8" selected>8</option>
-                    </select>
+                    <div class="mode-row">
+                        <label for="network-mode">Problem mode</label>
+                        <select id="network-mode">
+                            <option value="gallery" selected>Custom gallery</option>
+                            <option value="preset">Original MNIST 5 vs 8</option>
+                        </select>
+                    </div>
+
+                    <div id="preset-panel" class="hidden">
+                        <p class="step-line">Original Problem</p>
+                        <label for="preset-digit">Stored digit to corrupt</label>
+                        <select id="preset-digit">
+                            <option value="5">5</option>
+                            <option value="8" selected>8</option>
+                        </select>
+
+                        <button id="preset-run-btn" class="run-btn" type="button">Run 5 vs 8 Recall</button>
+                    </div>
+
+                    <div id="gallery-panel">
+                        <p class="step-line">Step 1 · Upload Memories (max 5)</p>
+                        <div class="gallery-picker">
+                            <label for="gallery-upload">Add images</label>
+                            <input id="gallery-upload" type="file" accept="image/*" multiple />
+                        </div>
+                        <div id="gallery-grid" class="gallery-grid"></div>
+                        <p class="meta-row" id="memory-meta">0 memories loaded.</p>
+
+                        <p class="step-line">Step 2 · Select Query & Noise Mode</p>
+                        <div class="tool-row">
+                            <button id="mode-random" class="tool-btn active" type="button">Random Noise</button>
+                            <button id="mode-manual" class="tool-btn" type="button">Manual Paint</button>
+                        </div>
+
+                        <div class="query-canvas-wrap">
+                            <canvas id="query-canvas" width="40" height="40"></canvas>
+                            <p id="query-hint" class="query-hint">Upload images, then click a slot to choose the query source.</p>
+                        </div>
+
+                        <div class="inline-buttons">
+                            <button id="prepare-btn" class="sub-btn" type="button">Prepare Query</button>
+                            <button id="reset-btn" class="sub-btn" type="button">Reset Query</button>
+                        </div>
+
+                        <p class="step-line">Step 3 · Submit Classification</p>
+                        <button id="submit-btn" class="run-btn" type="button" disabled>Submit Noisy Image</button>
+                    </div>
 
                     <label for="noise">Noise ratio: <span id="noise-value">0.30</span></label>
                     <input id="noise" type="range" min="0.00" max="0.55" step="0.01" value="0.30" />
 
-                    <label for="steps">Max sweeps: <span id="steps-value">25</span></label>
-                    <input id="steps" type="range" min="1" max="80" step="1" value="25" />
-
                     <label for="seed">Noise seed</label>
                     <input id="seed" type="number" value="42" />
 
-                    <button id="run-btn" class="run-btn">Run Hopfield Recall</button>
-
+                    <div id="inline-error" class="inline-error"></div>
                     <div id="summary" class="summary-box">
-                        Press <strong>Run Hopfield Recall</strong> to simulate noisy recall dynamics.
+                        Choose a mode to begin.
                     </div>
                 </aside>
 
@@ -85,36 +334,64 @@
 
             <section class="concept-strip">
                 <div>
-                    <h3>Update Style</h3>
-                    <p>Each sweep updates neurons one-by-one in sequence. That is asynchronous update, not all pixels simultaneously.</p>
+                    <h3>Original Baseline</h3>
+                    <p>Use the top switch to run the original 5-vs-8 Hopfield experiment exactly as a baseline.</p>
                 </div>
                 <div>
-                    <h3>Energy Function</h3>
-                    <p>Recall tends to reduce <code>E = -0.5 s^T W s</code>. Lower energy means a more stable state, but not always an exact stored memory.</p>
+                    <h3>Custom Gallery</h3>
+                    <p>Only uploaded slots are shown. Select one image visibly, include a subset for memory, and classify a noisy query.</p>
                 </div>
                 <div>
-                    <h3>Why Only 5 &amp; 8</h3>
-                    <p>Keeping memory load tiny makes attractor behavior easier to see and avoids capacity issues hiding the theory.</p>
+                    <h3>Noise Interaction</h3>
+                    <p>Pick one mode per run: random corruption from slider/seed or manual pixel-flip painting on the query canvas.</p>
                 </div>
             </section>
         </section>
     </main>
 
     <script>
-        const controls = {
-            digit: document.getElementById("digit"),
-            noise: document.getElementById("noise"),
-            steps: document.getElementById("steps"),
-            seed: document.getElementById("seed"),
-            runBtn: document.getElementById("run-btn"),
-            summary: document.getElementById("summary"),
-            noiseValue: document.getElementById("noise-value"),
-            stepsValue: document.getElementById("steps-value"),
+        const MAX_SLOTS = 5;
+        const CANVAS_SIDE = 40;
+
+        const state = {
+            slots: Array.from({ length: MAX_SLOTS }, () => ({ image: null, included: false })),
+            selectedIndex: -1,
+            noiseMode: "random",
+            queryPixels: null,
+            originalSelectedPixels: null,
+            painting: false,
+            mode: "gallery",
         };
 
-        function syncLabels() {
-            controls.noiseValue.textContent = Number(controls.noise.value).toFixed(2);
-            controls.stepsValue.textContent = controls.steps.value;
+        const ui = {
+            networkMode: document.getElementById("network-mode"),
+            presetPanel: document.getElementById("preset-panel"),
+            galleryPanel: document.getElementById("gallery-panel"),
+            presetDigit: document.getElementById("preset-digit"),
+            presetRunBtn: document.getElementById("preset-run-btn"),
+            galleryUpload: document.getElementById("gallery-upload"),
+            galleryGrid: document.getElementById("gallery-grid"),
+            memoryMeta: document.getElementById("memory-meta"),
+            modeRandom: document.getElementById("mode-random"),
+            modeManual: document.getElementById("mode-manual"),
+            noise: document.getElementById("noise"),
+            noiseValue: document.getElementById("noise-value"),
+            seed: document.getElementById("seed"),
+            queryCanvas: document.getElementById("query-canvas"),
+            queryHint: document.getElementById("query-hint"),
+            prepareBtn: document.getElementById("prepare-btn"),
+            resetBtn: document.getElementById("reset-btn"),
+            submitBtn: document.getElementById("submit-btn"),
+            inlineError: document.getElementById("inline-error"),
+            summary: document.getElementById("summary"),
+        };
+
+        function showError(message) {
+            ui.inlineError.textContent = message || "";
+        }
+
+        function clearError() {
+            showError("");
         }
 
         function imageLayout(title, height) {
@@ -129,7 +406,7 @@
             };
         }
 
-        function renderBinaryImage(target, image, title, height = 220) {
+        function renderPlot(target, image, title, height = 240) {
             Plotly.react(target, [
                 {
                     type: "heatmap",
@@ -146,20 +423,459 @@
             ], imageLayout(title, height), { displayModeBar: false, responsive: true });
         }
 
-        function renderStateTriplet(data) {
-            renderBinaryImage("stored-plot", data.state.clean, `stored (${data.params.digit})`);
-            renderBinaryImage("noisy-plot", data.state.noisy, "noisy");
-            renderBinaryImage("recalled-plot", data.state.recalled, `recalled -> ${data.summary.pred_label}`);
+        function flatToImage(flat, side = CANVAS_SIDE) {
+            const image = [];
+            for (let row = 0; row < side; row += 1) {
+                image.push(flat.slice(row * side, (row + 1) * side));
+            }
+            return image;
+        }
+
+        function grayscaleToBinary(imagePayload) {
+            return imagePayload.pixels.map((p) => (p >= 127 ? 255 : 0));
+        }
+
+        function drawFlatToCanvas(canvas, flat) {
+            const ctx = canvas.getContext("2d");
+            canvas.width = CANVAS_SIDE;
+            canvas.height = CANVAS_SIDE;
+            const image = ctx.createImageData(CANVAS_SIDE, CANVAS_SIDE);
+
+            for (let i = 0; i < flat.length; i += 1) {
+                const p = Math.max(0, Math.min(255, Math.round(flat[i])));
+                const j = i * 4;
+                image.data[j] = p;
+                image.data[j + 1] = p;
+                image.data[j + 2] = p;
+                image.data[j + 3] = 255;
+            }
+            ctx.putImageData(image, 0, 0);
+        }
+
+        function readImageFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onload = () => resolve(img);
+                    img.onerror = () => reject(new Error("Could not decode uploaded image."));
+                    img.src = reader.result;
+                };
+                reader.onerror = () => reject(new Error("Could not read uploaded file."));
+                reader.readAsDataURL(file);
+            });
+        }
+
+        async function fileToPayload(file) {
+            const img = await readImageFile(file);
+            const canvas = document.createElement("canvas");
+            canvas.width = CANVAS_SIDE;
+            canvas.height = CANVAS_SIDE;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(img, 0, 0, CANVAS_SIDE, CANVAS_SIDE);
+
+            const data = ctx.getImageData(0, 0, CANVAS_SIDE, CANVAS_SIDE).data;
+            const pixels = new Array(CANVAS_SIDE * CANVAS_SIDE);
+            for (let i = 0; i < pixels.length; i += 1) {
+                const j = i * 4;
+                const r = data[j];
+                const g = data[j + 1];
+                const b = data[j + 2];
+                pixels[i] = 0.299 * r + 0.587 * g + 0.114 * b;
+            }
+            return { width: CANVAS_SIDE, height: CANVAS_SIDE, pixels };
+        }
+
+        function setSlotImage(index, payload) {
+            state.slots[index].image = payload;
+            state.slots[index].included = true;
+
+            if (state.selectedIndex === -1) {
+                state.selectedIndex = index;
+                loadSelectedIntoQuery();
+            }
+            refreshGalleryClasses();
+            syncMemoryMeta();
+            refreshActionState();
+        }
+
+        function clearSlot(index) {
+            state.slots[index].image = null;
+            state.slots[index].included = false;
+
+            if (state.selectedIndex === index) {
+                state.selectedIndex = state.slots.findIndex((slot) => !!slot.image);
+                if (state.selectedIndex >= 0) {
+                    loadSelectedIntoQuery();
+                } else {
+                    state.queryPixels = null;
+                    state.originalSelectedPixels = null;
+                    drawFlatToCanvas(ui.queryCanvas, new Array(CANVAS_SIDE * CANVAS_SIDE).fill(0));
+                    ui.queryHint.textContent = "Upload images, then click a slot to choose the query source.";
+                }
+            }
+
+            refreshGalleryClasses();
+            syncMemoryMeta();
+            refreshActionState();
+        }
+
+        function makeGalleryCard(index) {
+            const card = document.createElement("div");
+            card.className = "gallery-card hidden";
+            card.dataset.index = String(index);
+
+            const title = document.createElement("div");
+            title.className = "slot-title";
+            title.innerHTML = `<span>Slot ${index + 1}</span><span class="slot-label">Query</span>`;
+
+            const canvas = document.createElement("canvas");
+            canvas.width = CANVAS_SIDE;
+            canvas.height = CANVAS_SIDE;
+            canvas.className = "slot-canvas";
+
+            const actions = document.createElement("div");
+            actions.className = "slot-actions";
+
+            const fileInput = document.createElement("input");
+            fileInput.type = "file";
+            fileInput.accept = "image/*";
+
+            const memoryToggle = document.createElement("label");
+            memoryToggle.className = "memory-toggle";
+            const includeInput = document.createElement("input");
+            includeInput.type = "checkbox";
+            includeInput.checked = false;
+            memoryToggle.appendChild(includeInput);
+            memoryToggle.appendChild(document.createTextNode("Include in memory set"));
+
+            const clearBtn = document.createElement("button");
+            clearBtn.type = "button";
+            clearBtn.className = "sub-btn";
+            clearBtn.textContent = "Remove Slot";
+
+            actions.appendChild(fileInput);
+            actions.appendChild(memoryToggle);
+            actions.appendChild(clearBtn);
+
+            card.appendChild(title);
+            card.appendChild(canvas);
+            card.appendChild(actions);
+
+            canvas.addEventListener("click", () => selectSlot(index));
+
+            fileInput.addEventListener("change", async () => {
+                clearError();
+                const file = fileInput.files?.[0];
+                if (!file) {
+                    return;
+                }
+                try {
+                    const payload = await fileToPayload(file);
+                    setSlotImage(index, payload);
+                } catch (error) {
+                    showError(error.message);
+                }
+            });
+
+            includeInput.addEventListener("change", () => {
+                state.slots[index].included = includeInput.checked;
+                clearError();
+                syncMemoryMeta();
+                refreshActionState();
+            });
+
+            clearBtn.addEventListener("click", () => {
+                clearSlot(index);
+            });
+
+            return { card, canvas, fileInput, includeInput };
+        }
+
+        const slotUis = [];
+
+        function buildGallery() {
+            for (let i = 0; i < MAX_SLOTS; i += 1) {
+                const slotUi = makeGalleryCard(i);
+                slotUis.push(slotUi);
+                ui.galleryGrid.appendChild(slotUi.card);
+            }
+            refreshGalleryClasses();
+        }
+
+        function selectSlot(index) {
+            if (!state.slots[index].image) {
+                showError("Upload an image in that slot before selecting it.");
+                return;
+            }
+            state.selectedIndex = index;
+            clearError();
+            loadSelectedIntoQuery();
+            refreshGalleryClasses();
+            refreshActionState();
+        }
+
+        function refreshGalleryClasses() {
+            for (let i = 0; i < MAX_SLOTS; i += 1) {
+                const slotUi = slotUis[i];
+                const slot = state.slots[i];
+
+                const visible = !!slot.image;
+                slotUi.card.classList.toggle("hidden", !visible);
+                slotUi.card.classList.toggle("selected", i === state.selectedIndex && visible);
+                slotUi.includeInput.disabled = !visible;
+                slotUi.includeInput.checked = slot.included;
+
+                if (visible) {
+                    drawFlatToCanvas(slotUi.canvas, grayscaleToBinary(slot.image));
+                }
+            }
+        }
+
+        function syncMemoryMeta() {
+            const loaded = state.slots.filter((s) => !!s.image).length;
+            const included = state.slots.filter((s) => !!s.image && s.included).length;
+            ui.memoryMeta.textContent = `${loaded} loaded · ${included} in memory set`;
+        }
+
+        function loadSelectedIntoQuery() {
+            if (state.selectedIndex < 0) {
+                return;
+            }
+            const slot = state.slots[state.selectedIndex];
+            if (!slot.image) {
+                return;
+            }
+
+            const base = grayscaleToBinary(slot.image);
+            state.originalSelectedPixels = base.slice();
+            state.queryPixels = base.slice();
+            drawFlatToCanvas(ui.queryCanvas, state.queryPixels);
+            ui.queryHint.textContent = `Selected query source: slot ${state.selectedIndex + 1}`;
+        }
+
+        function toSigned(flat255) {
+            return flat255.map((p) => (p >= 127 ? 1 : -1));
+        }
+
+        function signedTo255(signed) {
+            return signed.map((v) => (v > 0 ? 255 : 0));
+        }
+
+        function mulberry32(a) {
+            return function rng() {
+                let t = (a += 0x6d2b79f5);
+                t = Math.imul(t ^ (t >>> 15), t | 1);
+                t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+                return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+            };
+        }
+
+        function addRandomNoiseToSigned(signed, ratio, seed) {
+            const nFlip = Math.floor(signed.length * ratio);
+            if (nFlip <= 0) {
+                return signed.slice();
+            }
+
+            const arr = signed.slice();
+            const idxs = [...Array(arr.length).keys()];
+            const rng = mulberry32(seed >>> 0);
+            for (let i = idxs.length - 1; i > 0; i -= 1) {
+                const j = Math.floor(rng() * (i + 1));
+                const t = idxs[i];
+                idxs[i] = idxs[j];
+                idxs[j] = t;
+            }
+
+            for (let i = 0; i < nFlip; i += 1) {
+                const idx = idxs[i];
+                arr[idx] *= -1;
+            }
+            return arr;
+        }
+
+        function refreshActionState() {
+            const isGallery = state.mode === "gallery";
+            const loadedCount = state.slots.filter((s) => !!s.image).length;
+            const includedCount = state.slots.filter((s) => !!s.image && s.included).length;
+            const hasSelection = state.selectedIndex >= 0 && !!state.slots[state.selectedIndex].image;
+            const hasQuery = Array.isArray(state.queryPixels) && state.queryPixels.length === CANVAS_SIDE * CANVAS_SIDE;
+
+            ui.prepareBtn.disabled = !isGallery || loadedCount < 1 || !hasSelection;
+            ui.resetBtn.disabled = !isGallery || loadedCount < 1 || !hasSelection;
+            ui.submitBtn.disabled = !isGallery || loadedCount < 1 || includedCount < 1 || !hasSelection || !hasQuery;
+            ui.presetRunBtn.disabled = isGallery;
+        }
+
+        function applyRandomNoise() {
+            if (!state.originalSelectedPixels) {
+                showError("Select an uploaded image first.");
+                return;
+            }
+            const ratio = Number(ui.noise.value);
+            const seed = Number(ui.seed.value || 0);
+            const signed = toSigned(state.originalSelectedPixels);
+            const noisySigned = addRandomNoiseToSigned(signed, ratio, seed);
+            state.queryPixels = signedTo255(noisySigned);
+            drawFlatToCanvas(ui.queryCanvas, state.queryPixels);
+            ui.queryHint.textContent = `Random noise applied (${ratio.toFixed(2)}).`;
+            clearError();
+            refreshActionState();
+        }
+
+        function resetQuery() {
+            if (!state.originalSelectedPixels) {
+                showError("Select an uploaded image first.");
+                return;
+            }
+            state.queryPixels = state.originalSelectedPixels.slice();
+            drawFlatToCanvas(ui.queryCanvas, state.queryPixels);
+            ui.queryHint.textContent = "Query reset to selected source image.";
+            clearError();
+            refreshActionState();
+        }
+
+        function setNoiseMode(mode) {
+            state.noiseMode = mode;
+            ui.modeRandom.classList.toggle("active", mode === "random");
+            ui.modeManual.classList.toggle("active", mode === "manual");
+            ui.queryCanvas.style.cursor = mode === "manual" ? "crosshair" : "default";
+
+            if (mode === "random") {
+                ui.queryHint.textContent = "Random mode active. Press Prepare Query to apply noise.";
+            } else {
+                ui.queryHint.textContent = "Manual mode active. Paint on query image to flip pixels.";
+            }
+        }
+
+        function pointerToPixel(event) {
+            const rect = ui.queryCanvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
+            const px = Math.floor((x / rect.width) * CANVAS_SIDE);
+            const py = Math.floor((y / rect.height) * CANVAS_SIDE);
+            return {
+                px: Math.max(0, Math.min(CANVAS_SIDE - 1, px)),
+                py: Math.max(0, Math.min(CANVAS_SIDE - 1, py)),
+            };
+        }
+
+        function flipPixel(px, py) {
+            if (!state.queryPixels) {
+                return;
+            }
+            const idx = py * CANVAS_SIDE + px;
+            state.queryPixels[idx] = state.queryPixels[idx] > 0 ? 0 : 255;
+        }
+
+        function onPaintPointer(event) {
+            if (!state.painting || state.noiseMode !== "manual" || state.mode !== "gallery") {
+                return;
+            }
+            if (!state.queryPixels) {
+                return;
+            }
+            const { px, py } = pointerToPixel(event);
+            flipPixel(px, py);
+            drawFlatToCanvas(ui.queryCanvas, state.queryPixels);
+            refreshActionState();
+            clearError();
+        }
+
+        function attachPaintingHandlers() {
+            ui.queryCanvas.addEventListener("pointerdown", (event) => {
+                if (state.noiseMode !== "manual" || state.mode !== "gallery") {
+                    return;
+                }
+                if (!state.queryPixels) {
+                    showError("Prepare or reset a query image first.");
+                    return;
+                }
+                state.painting = true;
+                ui.queryCanvas.setPointerCapture(event.pointerId);
+                onPaintPointer(event);
+            });
+
+            ui.queryCanvas.addEventListener("pointermove", onPaintPointer);
+            const endPaint = () => {
+                state.painting = false;
+            };
+            ui.queryCanvas.addEventListener("pointerup", endPaint);
+            ui.queryCanvas.addEventListener("pointercancel", endPaint);
+            ui.queryCanvas.addEventListener("pointerleave", endPaint);
+        }
+
+        function syncNoiseLabel() {
+            ui.noiseValue.textContent = Number(ui.noise.value).toFixed(2);
+        }
+
+        function buildGalleryPayload() {
+            const uploadedStore = [];
+            const includedIndices = [];
+
+            for (let i = 0; i < MAX_SLOTS; i += 1) {
+                const slot = state.slots[i];
+                if (!slot.image) {
+                    continue;
+                }
+                const indexInUploadedStore = uploadedStore.length;
+                uploadedStore.push(slot.image);
+                if (slot.included) {
+                    includedIndices.push(indexInUploadedStore);
+                }
+            }
+
+            let selectedIndex = -1;
+            if (state.selectedIndex >= 0) {
+                let count = 0;
+                for (let i = 0; i < MAX_SLOTS; i += 1) {
+                    if (!state.slots[i].image) {
+                        continue;
+                    }
+                    if (i === state.selectedIndex) {
+                        selectedIndex = count;
+                        break;
+                    }
+                    count += 1;
+                }
+            }
+
+            if (uploadedStore.length < 1) {
+                throw new Error("Upload at least one image.");
+            }
+            if (includedIndices.length < 1) {
+                throw new Error("Include at least one loaded image in the memory set.");
+            }
+            if (selectedIndex < 0) {
+                throw new Error("Select one loaded image as the query source.");
+            }
+            if (!Array.isArray(state.queryPixels) || state.queryPixels.length !== CANVAS_SIDE * CANVAS_SIDE) {
+                throw new Error("Prepare the query image before submitting.");
+            }
+
+            return {
+                mode: "gallery",
+                uploaded_store: uploadedStore,
+                included_indices: includedIndices,
+                selected_index: selectedIndex,
+                query_image: {
+                    width: CANVAS_SIDE,
+                    height: CANVAS_SIDE,
+                    pixels: state.queryPixels,
+                },
+                noise_ratio: Number(ui.noise.value),
+                seed: Number(ui.seed.value || 0),
+            };
         }
 
         function renderSummary(data) {
             const flips = data.history.flips_per_sweep.join(", ");
-            controls.summary.innerHTML = `
+            ui.summary.innerHTML = `
                 <strong>Stored labels:</strong> ${data.stored.labels.join(", ")}<br>
-                <strong>Dataset source:</strong> ${data.dataset.source}<br>
-                <strong>Digit tested:</strong> ${data.params.digit}<br>
+                <strong>Mode:</strong> ${data.params.mode}<br>
+                <strong>Query source:</strong> ${data.dataset.query_source}<br>
+                <strong>Pattern tested:</strong> ${data.params.tested_label}<br>
                 <strong>Nearest stored label:</strong> ${data.summary.pred_label} (distance=${data.summary.pred_distance})<br>
-                <strong>Exact recovery:</strong> ${data.summary.exact_recovery}<br>
                 <strong>Exact stored state:</strong> ${data.summary.is_stored_state}<br>
                 <strong>Sweeps executed:</strong> ${data.summary.sweeps_executed}<br>
                 <strong>Energy:</strong> ${data.summary.energy_noisy.toFixed(1)} -> ${data.summary.energy_recalled.toFixed(1)}<br>
@@ -167,21 +883,50 @@
             `;
         }
 
-        function renderAll(data) {
-            renderStateTriplet(data);
+        function renderResponse(data) {
+            renderPlot("stored-plot", data.state.clean, `selected source (${data.params.tested_label})`);
+            renderPlot("noisy-plot", data.state.noisy, "submitted noisy query");
+            renderPlot("recalled-plot", data.state.recalled, `recalled -> ${data.summary.pred_label}`);
             renderSummary(data);
         }
 
-        async function runExperiment() {
-            controls.runBtn.disabled = true;
-            controls.runBtn.textContent = "Running...";
+        async function submitClassification() {
+            ui.submitBtn.disabled = true;
+            ui.submitBtn.textContent = "Classifying...";
+            clearError();
+
+            try {
+                const payload = buildGalleryPayload();
+                const response = await fetch("/api/hopfield/run", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                });
+
+                const data = await response.json();
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to run Hopfield classification.");
+                }
+                renderResponse(data);
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                ui.submitBtn.textContent = "Submit Noisy Image";
+                refreshActionState();
+            }
+        }
+
+        async function runPreset() {
+            ui.presetRunBtn.disabled = true;
+            ui.presetRunBtn.textContent = "Running...";
+            clearError();
 
             try {
                 const payload = {
-                    digit: Number(controls.digit.value),
-                    noise_ratio: Number(controls.noise.value),
-                    steps: Number(controls.steps.value),
-                    seed: Number(controls.seed.value || 0),
+                    mode: "preset",
+                    digit: Number(ui.presetDigit.value),
+                    noise_ratio: Number(ui.noise.value),
+                    seed: Number(ui.seed.value || 0),
                 };
 
                 const response = await fetch("/api/hopfield/run", {
@@ -192,24 +937,109 @@
 
                 const data = await response.json();
                 if (!response.ok) {
-                    throw new Error(data.error || "Failed to run Hopfield simulation.");
+                    throw new Error(data.error || "Failed to run preset Hopfield experiment.");
                 }
-                renderAll(data);
+                renderResponse(data);
             } catch (error) {
-                controls.summary.textContent = `Error: ${error.message}`;
+                showError(error.message);
             } finally {
-                controls.runBtn.disabled = false;
-                controls.runBtn.textContent = "Run Hopfield Recall";
+                ui.presetRunBtn.textContent = "Run 5 vs 8 Recall";
+                refreshActionState();
             }
         }
 
-        controls.noise.addEventListener("input", syncLabels);
-        controls.steps.addEventListener("input", syncLabels);
+        function onPrepareQuery() {
+            if (state.noiseMode === "random") {
+                applyRandomNoise();
+                return;
+            }
+            if (!state.queryPixels && state.originalSelectedPixels) {
+                state.queryPixels = state.originalSelectedPixels.slice();
+                drawFlatToCanvas(ui.queryCanvas, state.queryPixels);
+            }
+            clearError();
+            refreshActionState();
+        }
 
-        controls.runBtn.addEventListener("click", runExperiment);
+        function switchMode(mode) {
+            state.mode = mode;
+            const isGallery = mode === "gallery";
+            ui.galleryPanel.classList.toggle("hidden", !isGallery);
+            ui.presetPanel.classList.toggle("hidden", isGallery);
+            clearError();
+            refreshActionState();
+            if (!isGallery) {
+                ui.queryHint.textContent = "Preset mode active. Use Run 5 vs 8 Recall.";
+            }
+        }
 
-        syncLabels();
-        runExperiment();
+        async function onGalleryUploadChange() {
+            clearError();
+            const files = Array.from(ui.galleryUpload.files || []);
+            if (!files.length) {
+                return;
+            }
+
+            let placed = 0;
+            for (const file of files) {
+                const emptyIndex = state.slots.findIndex((slot) => !slot.image);
+                if (emptyIndex < 0) {
+                    break;
+                }
+                try {
+                    const payload = await fileToPayload(file);
+                    setSlotImage(emptyIndex, payload);
+                    placed += 1;
+                } catch (error) {
+                    showError(error.message);
+                    break;
+                }
+            }
+
+            if (placed < files.length) {
+                showError(`Only ${MAX_SLOTS} images are allowed. Extra files were ignored.`);
+            }
+
+            ui.galleryUpload.value = "";
+        }
+
+        function seedInitialPlots() {
+            const blank = flatToImage(new Array(CANVAS_SIDE * CANVAS_SIDE).fill(0));
+            renderPlot("stored-plot", blank, "selected source", 240);
+            renderPlot("noisy-plot", blank, "submitted noisy query", 240);
+            renderPlot("recalled-plot", blank, "recalled", 240);
+            drawFlatToCanvas(ui.queryCanvas, new Array(CANVAS_SIDE * CANVAS_SIDE).fill(0));
+        }
+
+        function init() {
+            buildGallery();
+            syncNoiseLabel();
+            setNoiseMode("random");
+            attachPaintingHandlers();
+            seedInitialPlots();
+            syncMemoryMeta();
+            switchMode("gallery");
+
+            ui.noise.addEventListener("input", syncNoiseLabel);
+            ui.networkMode.addEventListener("change", (event) => switchMode(event.target.value));
+            ui.galleryUpload.addEventListener("change", onGalleryUploadChange);
+
+            ui.modeRandom.addEventListener("click", () => {
+                setNoiseMode("random");
+                clearError();
+            });
+            ui.modeManual.addEventListener("click", () => {
+                setNoiseMode("manual");
+                clearError();
+            });
+
+            ui.prepareBtn.addEventListener("click", onPrepareQuery);
+            ui.resetBtn.addEventListener("click", resetQuery);
+            ui.submitBtn.addEventListener("click", submitClassification);
+            ui.presetRunBtn.addEventListener("click", runPreset);
+        }
+
+        init();
     </script>
 </body>
 </html>
